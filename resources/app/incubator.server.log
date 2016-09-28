@@ -1,0 +1,78 @@
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger pin code: 234-559-432
+ * Running on http://0.0.0.0:50002/ (Press CTRL+C to quit)
+127.0.0.1 - - [27/Sep/2016 15:24:07] "POST /actionlist HTTP/1.1" 500 -
+Traceback (most recent call last):
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1836, in __call__
+    return self.wsgi_app(environ, start_response)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1820, in wsgi_app
+    response = self.make_response(self.handle_exception(e))
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 271, in error_router
+    return original_handler(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1403, in handle_exception
+    reraise(exc_type, exc_value, tb)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 268, in error_router
+    return self.handle_error(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1817, in wsgi_app
+    response = self.full_dispatch_request()
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1477, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 271, in error_router
+    return original_handler(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1381, in handle_user_exception
+    reraise(exc_type, exc_value, tb)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 268, in error_router
+    return self.handle_error(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1475, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1461, in dispatch_request
+    return self.view_functions[rule.endpoint](**req.view_args)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 477, in wrapper
+    resp = resource(*args, **kwargs)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\views.py", line 84, in view
+    return self.dispatch_request(*args, **kwargs)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 587, in dispatch_request
+    resp = meth(*args, **kwargs)
+  File "C:\Users\samzhang\Documents\workspace\hackathon\src\app\control_server.py", line 74, in post
+    print 'new action added to the queue: '+args['action']
+TypeError: cannot concatenate 'str' and 'NoneType' objects
+127.0.0.1 - - [27/Sep/2016 15:24:09] "POST /actionlist HTTP/1.1" 500 -
+Traceback (most recent call last):
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1836, in __call__
+    return self.wsgi_app(environ, start_response)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1820, in wsgi_app
+    response = self.make_response(self.handle_exception(e))
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 271, in error_router
+    return original_handler(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1403, in handle_exception
+    reraise(exc_type, exc_value, tb)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 268, in error_router
+    return self.handle_error(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1817, in wsgi_app
+    response = self.full_dispatch_request()
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1477, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 271, in error_router
+    return original_handler(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1381, in handle_user_exception
+    reraise(exc_type, exc_value, tb)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 268, in error_router
+    return self.handle_error(e)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1475, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\app.py", line 1461, in dispatch_request
+    return self.view_functions[rule.endpoint](**req.view_args)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 477, in wrapper
+    resp = resource(*args, **kwargs)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask\views.py", line 84, in view
+    return self.dispatch_request(*args, **kwargs)
+  File "c:\Users\samzhang\AppData\Local\Continuum\Anaconda\lib\site-packages\flask_restful\__init__.py", line 587, in dispatch_request
+    resp = meth(*args, **kwargs)
+  File "C:\Users\samzhang\Documents\workspace\hackathon\src\app\control_server.py", line 74, in post
+    print 'new action added to the queue: '+args['action']
+TypeError: cannot concatenate 'str' and 'NoneType' objects
+127.0.0.1 - - [27/Sep/2016 15:24:35] "POST /actionlist HTTP/1.1" 201 -
+127.0.0.1 - - [27/Sep/2016 15:24:39] "POST /actionlist HTTP/1.1" 201 -
+127.0.0.1 - - [27/Sep/2016 15:24:43] "POST /actionlist HTTP/1.1" 201 -
+127.0.0.1 - - [27/Sep/2016 15:25:04] "GET /actionlist HTTP/1.1" 200 -
