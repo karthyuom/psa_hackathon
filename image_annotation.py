@@ -36,6 +36,7 @@ def annotateImage(orig_img, pickle_res_f_n):
 def annotateImageLive(orig_img, pickle_response):
   global g_img_scale
   
+  type = "NONE"
   h, w, ch = orig_img.shape
   new_img = cv2.resize(orig_img, (w/g_img_scale, h/g_img_scale))
 
@@ -44,18 +45,20 @@ def annotateImageLive(orig_img, pickle_response):
   response = pickle_response['responses'][0]
   if ('faceAnnotations' in response):
     annotations = response['faceAnnotations']
-    #print('%s People found' % len(annotations))
+    print('%s People found' % len(annotations))
     draw_face(new_img, annotations)
+    type = "FACE"
   elif ('textAnnotations' in response):
     annotations = response['textAnnotations']
     text_info = annotations[0]['description'].replace('\n', ' ')
-    #print('Text info found: %s' % text_info)
+    print('Text info found: %s' % text_info)
     new_img.fill(255)
     new_img = draw_color_text(new_img, text_info, (0,0,255))
+    type = "TEXT"
   else:
     return None#new_img
                 
-  return new_img
+  return [new_img, type]
   
 if __name__ == '__main__':    
       parser = argparse.ArgumentParser(

@@ -1,13 +1,3 @@
-'''
-Created on 26 Sep 2016
-
-@author: Karthick
-@brief: Vision server module to detect people faces and text info. 
-        Able to communicate with the robot to retrieve live camera stream
-        Able to communicate with AWS server to recognize people via websocket
-        Able to communicate with web-ui client via via websocket
-'''
-
 #!/usr/bin/env python
 
 # Copyright 2015 Google, Inc
@@ -23,31 +13,6 @@ Created on 26 Sep 2016
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-###############################################################################
-#
-# The MIT License (MIT)
-#
-# Copyright (c) Tavendo GmbH
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-#
-###############################################################################
 
 """Draws squares around faces in the given image."""
 
@@ -84,11 +49,6 @@ from twisted.python import log
 from twisted.internet import reactor
 
 
-## Global buffer
-g_frame_buf = []
-g_annotated_img = None
-
-
 # [START get_vision_service]
 DISCOVERY_URL='https://{api}.googleapis.com/$discovery/rest?version={apiVersion}'
 
@@ -100,7 +60,8 @@ def get_vision_service():
 # [END get_vision_service]
 
 
-def detect_content(img_buf, max_results=4):
+# [START detect_face]
+def detect_face(face_file, max_results=4):
     """Uses the Vision API to detect faces in the given file.
 
     Args:
@@ -109,10 +70,68 @@ def detect_content(img_buf, max_results=4):
     Returns:
         An array of dicts with information about the faces in the picture.
     """
-
+    image_content = face_file.read()
     batch_request = [{
         'image': {
-            'content': base64.b64encode(img_buf).decode('UTF-8')
+            'content': base64.b64encode(image_content).decode('UTF-8')
+            },
+        'features': [{
+            'type': 'FACE_DETECTION',
+            'maxResults': max_results,
+            },
+            {
+            "type":"LABEL_DETECTION",
+            "maxResults":10
+            },
+            {
+               "type": "IMAGE_PROPERTIES",
+               "maxResults": "10"
+            },
+            {
+               "type": "TEXT_DETECTION",
+               "maxResults": "20"
+            }
+             ]
+        }]
+# TEXT_DETECTION    Perform Optical Character Recognition (OCR) on text within the image
+# LOGO_DETECTION    Detect company logos within the image
+# SAFE_SEARCH_DETECTION    Determine image safe search properties on the image
+# LANDMARK_DETECTION    Detect geographic landmarks within the image
+# LABEL_DETECTION    Execute Image Content Analysis on the entire image and return
+# FACE_DETECTION    Detect faces within the image
+# IMAGE_PROPERTIES    Compute a set of properties about the image (such as the image's dominant colors)
+    service = get_vision_service()
+
+    request = service.images().annotate(body={
+        'requests': batch_request,
+        })
+    response = request.execute()
+    
+    # Store data (serialize)
+    #with open('response.pickle', 'wb') as handle:
+        #pickle.dump(response, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+    # Load data (deserialize)
+    #with open('response.pickle', 'rb') as handle:
+        #unserialized_data = pickle.load(handle)
+
+    return response
+# [END detect_face]
+
+def detect_content(img_file, max_results=4):
+    """Uses the Vision API to detect faces in the given file.
+
+    Args:
+        face_file: A file-like object containing an image with faces.
+
+    Returns:
+        An array of dicts with information about the faces in the picture.
+    """
+    #image_content = img_file.read()
+    #image_content = read_image(img_file)
+    batch_request = [{
+        'image': {
+            'content': base64.b64encode(img_file).decode('UTF-8')
             },
         'features': [{
             'type': 'FACE_DETECTION',
@@ -157,7 +176,72 @@ def detect_content(img_buf, max_results=4):
     return response
 # [END detect_content]
 
- 
+
+# [START highlight_faces]
+def highlight_faces(image, faces, output_filename):
+    """Draws a polygon around the faces, then saves to output_filename.
+
+    Args:
+      image: a file containing the image with the faces.
+      faces: a list of faces found in the file. This should be in the format
+          returned by the Vision API.
+      output_filename: the name of the image file to be created, where the faces
+          have polygons drawn around them.
+    """
+    im = Image.open(image)
+    draw = ImageDraw.Draw(im)
+
+    for face in faces:
+        box = [(v.get('x', 0.0), v.get('y', 0.0)) for v in face['fdBoundingPoly']['vertices']]
+        draw.line(box + [box[0]], width=5, fill='#00ff00')
+
+    del draw
+    im.save(output_filename)
+# [END highlight_faces]
+
+
+# [START main]
+def main(input_filename, output_filename, max_results):
+    with open(input_filename, 'rb') as image:
+        response = detect_face(image, max_results)
+        orig_img = read_image(input_filename)
+        annotated_img = annotateImageLive(orig_img,response)
+        cv2.imshow('Original', orig_img)
+        cv2.imshow('Annotation', annotated_img)
+        cv2.waitKey()
+        #print('Found %s face%s' % (len(faces), '' if len(faces) == 1 else 's'))
+
+        #print('Writing to file %s' % output_filename)
+        # Reset the file pointer, so we can read the file again
+        #image.seek(0)
+        #highlight_faces(image, faces, output_filename)
+# [END main]
+
+g_frame_buf = []
+g_annotated_img = None
+
+def processLiveStream():
+  global g_frame_buf
+  print("\nStart processing live stream...")
+  while True:
+    if cv2.waitKey(1) ==27:
+          return
+    print len(g_frame_buf)
+    if len(g_frame_buf) == 0:
+      #print("WARN: Empty stream buffer")
+      continue
+    temp_frame = g_frame_buf.pop(0)
+    response = detect_content(temp_frame, 4)
+    #print response
+    annotated_img = annotateImageLive(temp_frame,response)
+    if annotated_img == None:
+      continue
+    #cv2.imshow('Original', frame)
+    save_image('annotated_img.jpg',annotated_img)
+    #cv2.imshow('Annotation', annotated_img)
+    time.sleep(0.5)
+  
+  
 def retrieveLiveStream(stream_url):
   global g_frame_buf, g_annotated_img
   print("\nStart Retrieving live stream at %s..." % stream_url)
@@ -182,6 +266,13 @@ def retrieveLiveStream(stream_url):
           jpg = bytes[a:b+2]
           bytes= bytes[b+2:]
           frame = cv2.imdecode(np.fromstring(jpg, dtype=np.uint8),cv2.IMREAD_COLOR)
+          #print ('Decoding took {0} second!'.format(time.time() - startTime))
+          #g_frame_buf.append(frame)
+          #cv2.imshow('Live Streaming',frame)
+          #count += 1
+          #save_image('live_stream_frame' + str(count) + '.jpg',frame)
+          #save_image('live_stream_frame.jpg',frame)
+          #temp_frame = g_frame_buf.pop(0)
           response = None
           try:
             response = detect_content(jpg)
@@ -198,8 +289,6 @@ def retrieveLiveStream(stream_url):
             #print ('Annotation took {0} second!'.format(time.time() - startTime))
             if g_annotated_img is None:
               continue
-            #save_image('karthick.jpg',frame)
-            #exit(0)
             #cv2.imshow('Original', frame)
             #cv2.imshow('Annotation', annotated_img)
             #t3 = time.time()
@@ -237,8 +326,12 @@ class VisionServerProtocol(WebSocketServerProtocol):
               self.sendMessage(json.dumps(msg))
             else:          
                 #self.sendMessage('From:[Vision module]=> Found annotation!', False)
-                img_buf = cv2.imencode('.png', g_annotated_img[0])[1].tostring()
-                #print img_buf
+                #img_data = StringIO.StringIO()
+                #g_annotated_img
+                #plt.savefig(img_data, format='png')
+                #img_data.seek(0)
+                img_buf = cv2.imencode('.png', g_annotated_img)[1].tostring()
+                print img_buf
                 content = 'data:image/png;base64,' + \
                           urllib.quote(base64.b64encode(img_buf))
                 msg = {
@@ -254,10 +347,26 @@ class VisionServerProtocol(WebSocketServerProtocol):
 
 
 class AWSClientProtocol(WebSocketClientProtocol):
-  
+    
+    img_path = r'C:\Users\samzhang\Downloads\face_detection'
+    imgs = ["mei4.JPG",
+"mei3.JPG",
+"mei2.JPG",
+"eva2.JPG",
+"sam1.JPG",
+"sam2.JPG",
+"eva3.JPG",
+"eva4.JPG",
+"eva5.JPG",
+"eva6.JPG",
+"eva1.JPG",
+"sam3.JPG",
+"mei1.JPG"
+            ]
     reply_received = 0
+    
     start_processing = True
-        
+    
     def onConnect(self, response):
         print("Server connected: {0}".format(response.peer))
 
@@ -269,58 +378,58 @@ class AWSClientProtocol(WebSocketClientProtocol):
                    'type':'NEW FACE',
                    'val':'NULL'
                    }
-            
-            #msg['type'] = 'ADD_PERSON'
-            #msg['people_name'] = 'Karthick' 
-            img = "karthick_frame.jpg"
-            #img = "unknown_person.jpg"
-            with open(os.path.join(r"D:\Workspaces\eclipse-python\psa_hackathon\resources", img), 'rb') as image:
+#             self.sendMessage(b"\x00\x01\x03\x04", isBinary=True)
+#             for img in self.imgs:
+            #img = self.imgs[0]
+            img = "sam2.JPG"
+#             img = 'mei1.JPG'
+#             msg['type'] = 'ADD_PERSON'
+
+            with open(os.path.join(r"D:\Workspaces\eclipse-python\psa_hackathon\resources\websocket", img), 'rb') as image:
+#             with open(r'C:\Users\samzhang\Downloads\face_detection\eva_img\DSC_9477.JPG', 'rb') as image:
                 image_content = image.read()
                 msg['val'] = base64.b64encode(image_content)
-            print("getting data for face "+ img)
-            #print("Added new face: "+ img)
-            msg['type'] = 'FRAME'  
+            print("getting data for face "+ self.imgs[self.reply_received])
+            msg['type'] = 'FRAME'
+#             msg['people_name'] = 'xiao mei'    
             self.sendMessage(json.dumps(msg).encode('utf8'))
-            self.factory.reactor.callLater(1, hello)
         
         def recognizeFace():
           if g_annotated_img is None:
             pass
           elif ((len(g_annotated_img) == 2) & (g_annotated_img[1] == "TEXT")):
-            print("Skip sending request to AWS...")
-          elif ((len(g_annotated_img) == 2) & (g_annotated_img[1] == "FACE")):
             print("Send request to AWS to recognize the face...")
-            msg = {
-                   'type':'NEW FACE',
-                   'val':'NULL'
-                   }
-            img_buf = cv2.imencode('.jpg', g_annotated_img[0])[1].tostring()
-            msg['val'] = base64.b64encode(img_buf)
-            msg['type'] = 'FRAME' 
-            self.sendMessage(json.dumps(msg).encode('utf8'))
-            
           self.factory.reactor.callLater(1, recognizeFace)
             
         # start sending messages every second ..
-        hello()
-        #recognizeFace()
+        #hello()
+        recognizeFace()
         
     def onMessage(self, payload, isBinary):
+        msg = {
+        'type':'NEW FACE',
+        'val':'NULL'
+        }
         if isBinary:
             print("Binary message received: {0} bytes".format(len(payload)))
         else:
-            raw = payload.decode('utf8')
-            msg = json.loads(raw)
-            print("Received {} message of length {}.".format(msg['type'], raw))
-            
-            if (msg['type'] == "FRAME"):
-              if msg['people_name'] == "UNKNOWN_FACE":
-                print("UNKNOWN_FACE")
-              else:
-                print("Hi, {0}".format(msg['people_name']))
+            print("Text message received: {0}".format(payload.decode('utf8')))
             
         if not self.start_processing:
             return
+        if self.reply_received < len(self.imgs)-1:
+            self.reply_received = self.reply_received +1;
+        else:
+            self.reply_received = 0 
+        img = "sam2.JPG"
+        with open(os.path.join(r"D:\Workspaces\eclipse-python\psa_hackathon\resources\websocket", img), 'rb') as image:
+        #             with open(r'C:\Users\samzhang\Downloads\face_detection\eva_img\DSC_9477.JPG', 'rb') as image:
+            image_content = image.read()
+            msg['val'] = base64.b64encode(image_content)
+        print("getting data for face "+ self.imgs[self.reply_received])
+        msg['type'] = 'FRAME'
+        msg['people_name'] = 'Eva Wang'    
+        self.sendMessage(json.dumps(msg).encode('utf8'))
 
     def onClose(self, wasClean, code, reason):
         print("WebSocket connection closed: {0}".format(reason))
@@ -337,6 +446,25 @@ def registerAWSClientConnection(public_ip):
   
   
 if __name__ == '__main__':
+#    startTime = time.time()
+
+#     parser = argparse.ArgumentParser(
+#         description='Detects faces in the given image.')
+#     # parser.add_argument(
+#         # '--input_image', default='1.jpg',
+#         # help='the image you\'d like to detect faces in.')
+#     parser.add_argument(
+#         'input_image', help='the image you\'d like to detect faces in.')
+#     parser.add_argument(
+#         '--out', dest='output', default='out.jpg',
+#         help='the name of the output file.')
+#     parser.add_argument(
+#         '--max-results', dest='max_results', default=4,
+#         help='the max results of face detection.')
+#     args = parser.parse_args()
+# 
+#     main(args.input_image, args.output, args.max_results)
+
 
     ############ Register live streaming thread #####################
     
