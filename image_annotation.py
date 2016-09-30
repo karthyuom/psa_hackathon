@@ -56,7 +56,8 @@ def annotateImageLive(orig_img, pickle_response):
     new_img = draw_color_text(new_img, text_info, (0,0,255))
     type = "TEXT"
   else:
-    return None#new_img
+    #return None#new_img
+    type = "NONE"
                 
   return [new_img, type]
   

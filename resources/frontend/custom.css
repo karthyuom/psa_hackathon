@@ -1,0 +1,8 @@
+.no-border{
+    border: 0px;
+    box-shadow: none;
+}
+
+.no-bottom-margin{
+    margin-bottom: 0px; !important
+}

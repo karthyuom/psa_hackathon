@@ -67,6 +67,7 @@ import os
 import json
 import sys
 import urllib
+import threading
 from threading import Thread
 
 from PIL import Image
@@ -85,8 +86,9 @@ from twisted.internet import reactor
 
 
 ## Global buffer
-g_frame_buf = []
+g_frame_buf = None #TODO: Is it thread safe?
 g_annotated_img = None
+g_people_name = ''
 
 
 # [START get_vision_service]
@@ -157,6 +159,9 @@ def detect_content(img_buf, max_results=4):
     return response
 # [END detect_content]
 
+
+def delay():
+  pass
  
 def retrieveLiveStream(stream_url):
   global g_frame_buf, g_annotated_img
@@ -174,7 +179,7 @@ def retrieveLiveStream(stream_url):
       if ((cv2.waitKey(1) == 27)):
           exit(0)
       startTime = time.time()
-      bytes+=stream.read(1024)
+      bytes+=stream.read(1024*40)
       a = bytes.find('\xff\xd8')
       b = bytes.find('\xff\xd9')
       #print ('Stream reading took {0} second!'.format(time.time() - startTime))
@@ -182,13 +187,14 @@ def retrieveLiveStream(stream_url):
           jpg = bytes[a:b+2]
           bytes= bytes[b+2:]
           frame = cv2.imdecode(np.fromstring(jpg, dtype=np.uint8),cv2.IMREAD_COLOR)
+          g_frame_buf = frame
           response = None
           try:
             response = detect_content(jpg)
             t2 = time.time()
             print ('Content detection took {0} second!'.format(t2 - startTime))
           except:
-            print'WARN: No response found for the frame.'
+            print'WARN: No response from google vision api!'
             continue
           
           #print(response['responses'][0])
@@ -196,19 +202,21 @@ def retrieveLiveStream(stream_url):
             g_annotated_img = annotateImageLive(frame,response)
             #print g_annotated_img[1]
             #print ('Annotation took {0} second!'.format(time.time() - startTime))
-            if g_annotated_img is None:
-              continue
-            #save_image('karthick.jpg',frame)
+            #if g_annotated_img is None:
+              #continue
+            
+            #save_image('temp_frame.jpg',frame)
             #exit(0)
             #cv2.imshow('Original', frame)
-            #cv2.imshow('Annotation', annotated_img)
+            #cv2.imshow('Annotation', g_annotated_img[0])
             #t3 = time.time()
             #print ('Rendering took {0} second!'.format(t3 - t2))
           except:
             print 'WARN: Annotation failed!'
             continue
           #print ('Processing took {0} second!'.format(time.time() - startTime))
-          
+      timeout = threading.Timer(0.02,delay)
+      timeout.start()   
       #time.sleep(1)
 
 
@@ -218,39 +226,83 @@ class VisionServerProtocol(WebSocketServerProtocol):
         print("Client connecting: {0}".format(request.peer))
 
     def onOpen(self):
-        print("WebSocket connection open.")
+        print("Vision service socket connection open.")
+         
+        def delay():
+          pass
         
+        def renderFrame():
+          if g_frame_buf is None:
+            return
+          img_buf = cv2.imencode('.png', g_frame_buf)[1].tostring()
+          content = 'data:image/png;base64,' + \
+                    urllib.quote(base64.b64encode(img_buf))
+          msg = {
+                  "type": "ORIGINAL",
+                  "val":"Original frame rendering!",
+                  "content": content
+                }
+          self.sendMessage(json.dumps(msg))   
+          #time.sleep(30) 
+          #timeout = threading.Timer(0.03,delay)
+          #timeout.start()        
+          self.factory.reactor.callLater(0.2, renderFrame)          
+        
+        renderFrame()  
+              
     def onMessage(self, payload, isBinary):
         raw = payload.decode('utf8')
         msg = json.loads(raw)
         print("Received {} message of length {}.".format(
             msg['type'], len(raw)))
         
-        if msg['type'] == "REQ_FRAME":
-            #self.sendFrame()
-            #save_image('temp_frame.jpg', g_annotated_img)
-            if (g_annotated_img is None):
+        if (g_annotated_img is None):
               msg = {
-                      "type": "ORIGINAL_FRAME",
-                      "content": "Sorry, No annotation found!"
+                      "type": "ANNOTATED",
+                      "val": "Sorry, No annotation found!",
+                      "content": "NULL"
                     }
               self.sendMessage(json.dumps(msg))
-            else:          
-                #self.sendMessage('From:[Vision module]=> Found annotation!', False)
-                img_buf = cv2.imencode('.png', g_annotated_img[0])[1].tostring()
-                #print img_buf
-                content = 'data:image/png;base64,' + \
-                          urllib.quote(base64.b64encode(img_buf))
-                msg = {
-                        "type": "ANNOTATED_FRAME",
-                        "content": content
-                      }
-                self.sendMessage(json.dumps(msg))
+                        
+        elif msg['type'] == "AUTO":
+            img_buf = cv2.imencode('.png', g_annotated_img[0])[1].tostring()
+            val = ''
+            if g_annotated_img[1] == 'FACE':
+              val = g_people_name
+              
+            content = 'data:image/png;base64,' + \
+                      urllib.quote(base64.b64encode(img_buf))
+            msg = {
+                    "type": "ANNOTATED",
+                    "val":val,
+                    "content": content
+                  }
+            self.sendMessage(json.dumps(msg))
+                                       
+        elif msg['type'] == "MANUALFACE":
+            img_buf = cv2.imencode('.png', g_annotated_img[0])[1].tostring()
+            #print img_buf
+            val = ''
+            if g_annotated_img[1] == 'FACE':
+              val = g_people_name
+              
+            content = 'data:image/png;base64,' + \
+                      urllib.quote(base64.b64encode(img_buf))
+            msg = {
+                    "type": "ANNOTATED",
+                    "val":val,
+                    "content": content
+                  }
+            self.sendMessage(json.dumps(msg))
+            
+        elif msg['type'] == "IDENTIFIED":
+          #TODO: Add new person to AWS db
+          pass
         else:
             print("WARN: Unknown message type: {}".format(msg['type']))
 
     def onClose(self, wasClean, code, reason):
-        print("WebSocket connection closed: {0}".format(reason))
+        print("Vision service socket connection closed: {0}".format(reason))
 
 
 class AWSClientProtocol(WebSocketClientProtocol):
@@ -262,48 +314,50 @@ class AWSClientProtocol(WebSocketClientProtocol):
         print("Server connected: {0}".format(response.peer))
 
     def onOpen(self):
-        print("WebSocket connection open.")
+        print("AWS Client connection open.")
 
-        def hello():
+        def register_faces(path_to_img,name):
             msg = {
-                   'type':'NEW FACE',
+                   'type':'ADD_PERSON',
                    'val':'NULL'
                    }
-            
-            #msg['type'] = 'ADD_PERSON'
-            #msg['people_name'] = 'Karthick' 
-            img = "karthick_frame.jpg"
-            #img = "unknown_person.jpg"
-            with open(os.path.join(r"D:\Workspaces\eclipse-python\psa_hackathon\resources", img), 'rb') as image:
+            msg['people_name'] = name
+            with open(path_to_img, 'rb') as image:
                 image_content = image.read()
                 msg['val'] = base64.b64encode(image_content)
-            print("getting data for face "+ img)
-            #print("Added new face: "+ img)
-            msg['type'] = 'FRAME'  
+            print("Register person: "+ name)
             self.sendMessage(json.dumps(msg).encode('utf8'))
-            self.factory.reactor.callLater(1, hello)
+            #self.factory.reactor.callLater(1, register_faces(path_to_img,name))
         
         def recognizeFace():
           if g_annotated_img is None:
+            print("No frame found to recognize the people!")
             pass
+          elif ((len(g_annotated_img) == 2) & (g_annotated_img[1] == "NONE")):
+            print("Skip sending request to AWS...")
           elif ((len(g_annotated_img) == 2) & (g_annotated_img[1] == "TEXT")):
             print("Skip sending request to AWS...")
           elif ((len(g_annotated_img) == 2) & (g_annotated_img[1] == "FACE")):
             print("Send request to AWS to recognize the face...")
             msg = {
-                   'type':'NEW FACE',
+                   'type':'FRAME',
                    'val':'NULL'
                    }
-            img_buf = cv2.imencode('.jpg', g_annotated_img[0])[1].tostring()
+            img_buf = cv2.imencode('.jpg', g_frame_buf)[1].tostring()
             msg['val'] = base64.b64encode(img_buf)
-            msg['type'] = 'FRAME' 
             self.sendMessage(json.dumps(msg).encode('utf8'))
             
           self.factory.reactor.callLater(1, recognizeFace)
             
-        # start sending messages every second ..
-        hello()
-        #recognizeFace()
+        # Register faces ..
+        register_face_dir = r"D:\Workspaces\eclipse-python\psa_hackathon\register_faces"
+        for img_f in os.listdir(register_face_dir):
+          name = str(img_f.split('.')[0])
+          #print name
+          register_faces(os.path.join(register_face_dir,img_f), name)
+        
+        # Recognize people in the frame
+        recognizeFace()
         
     def onMessage(self, payload, isBinary):
         if isBinary:
@@ -311,28 +365,31 @@ class AWSClientProtocol(WebSocketClientProtocol):
         else:
             raw = payload.decode('utf8')
             msg = json.loads(raw)
-            print("Received {} message of length {}.".format(msg['type'], raw))
+            #print("Received {} message of length {}.".format(msg['type'], raw))
             
-            if (msg['type'] == "FRAME"):
-              if msg['people_name'] == "UNKNOWN_FACE":
-                print("UNKNOWN_FACE")
+            if (msg['type'] == "ADD_PERSON"):
+              print("Successfully regsitered {0}".format(msg['people_name']))
+            elif (msg['type'] == "FRAME"):
+              if msg['people_name'] == "UNKNOWN":
+                print("Sorry, I don't know who you are..!!")
               else:
-                print("Hi, {0}".format(msg['people_name']))
+                g_people_name = msg['people_name']
+                print("Hi, {0}".format(g_people_name))
             
         if not self.start_processing:
             return
 
     def onClose(self, wasClean, code, reason):
-        print("WebSocket connection closed: {0}".format(reason))
+        print("AWS Client connection closed: {0}".format(reason))
         
                    
 def registerAWSClientConnection(public_ip):
     log.startLogging(sys.stdout)
     
-    factory = WebSocketClientFactory(u"ws://"+public_ip)
+    factory = WebSocketClientFactory(u"ws://"+public_ip+":9000")
     factory.protocol = AWSClientProtocol
 
-    reactor.connectTCP(public_ip, 80, factory)
+    reactor.connectTCP(public_ip, 9000, factory)
     reactor.run()
   
   

@@ -49,8 +49,8 @@ class MyClientProtocol(WebSocketClientProtocol):
             self.factory.reactor.callLater(1, hello)
         def requestFrame():
             req_msg = {
-                        "type": "REQ_FRAME",
-                        "content": "Do you have any annotated frame?"
+                        "type": "AUTO",
+                        "val": "NULL"
                       }
             self.sendMessage(json.dumps(req_msg))
             self.factory.reactor.callLater(1, requestFrame)

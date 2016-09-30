@@ -1,0 +1,108 @@
+
+Start Retrieving live stream at http://172.20.10.6:5002/video_feed...
+2016-09-30 14:11:51+0800 [-] Log opened.
+2016-09-30 14:11:51+0800 [-] Warning: primary log target selected twice at <D:\Python\Anaconda\lib\site-packages\twisted\python\log.py:210> - previously selected at <D:\Python\Anaconda\lib\site-packages\twisted\python\log.py:210>.  Remove one of the calls to beginLoggingTo.
+2016-09-30 14:11:51+0800 [-] Log opened.
+2016-09-30 14:11:51+0800 [-] Warning: primary log target selected twice at <D:\Python\Anaconda\lib\site-packages\twisted\python\log.py:210> - previously selected at <D:\Python\Anaconda\lib\site-packages\twisted\python\log.py:210>.  Remove one of the calls to beginLoggingTo.
+2016-09-30 14:11:51+0800 [-] Log opened.
+2016-09-30 14:11:51+0800 [-] Log opened.
+2016-09-30 14:11:51+0800 [-] Starting factory <autobahn.twisted.websocket.WebSocketClientFactory object at 0x0649E9B0>
+2016-09-30 14:11:51+0800 [-] Starting factory <autobahn.twisted.websocket.WebSocketClientFactory object at 0x0649E9B0>
+2016-09-30 14:11:51+0800 [-] WebSocketServerFactory starting on 9000
+2016-09-30 14:11:51+0800 [-] WebSocketServerFactory starting on 9000
+2016-09-30 14:11:51+0800 [-] Starting factory <autobahn.twisted.websocket.WebSocketServerFactory object at 0x0649ECB0>
+2016-09-30 14:11:51+0800 [-] Starting factory <autobahn.twisted.websocket.WebSocketServerFactory object at 0x0649ECB0>
+2016-09-30 14:11:51+0800 [-] Traceback (most recent call last):
+2016-09-30 14:11:51+0800 [-] Traceback (most recent call last):
+2016-09-30 14:11:51+0800 [-]   File "vision_main.py", line 411, in <module>
+2016-09-30 14:11:51+0800 [-]   File "vision_main.py", line 411, in <module>
+2016-09-30 14:11:51+0800 [-]     reactor.run()
+2016-09-30 14:11:51+0800 [-]     reactor.run()
+2016-09-30 14:11:51+0800 [-]   File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 1194, in run
+2016-09-30 14:11:51+0800 [-]   File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 1194, in run
+2016-09-30 14:11:51+0800 [-]     self.startRunning(installSignalHandlers=installSignalHandlers)
+2016-09-30 14:11:51+0800 [-]     self.startRunning(installSignalHandlers=installSignalHandlers)
+2016-09-30 14:11:51+0800 [-]   File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 1174, in startRunning
+2016-09-30 14:11:51+0800 [-]   File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 1174, in startRunning
+2016-09-30 14:11:51+0800 [-]     ReactorBase.startRunning(self)
+2016-09-30 14:11:51+0800 [-]     ReactorBase.startRunning(self)
+2016-09-30 14:11:51+0800 [-]   File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 682, in startRunning
+2016-09-30 14:11:51+0800 [-]   File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 682, in startRunning
+2016-09-30 14:11:51+0800 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 417, in fireEvent
+	    DeferredList(beforeResults).addCallback(self._continueFiring)
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\defer.py", line 317, in addCallback
+	    callbackKeywords=kw)
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\defer.py", line 306, in addCallbacks
+	    self._runCallbacks()
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\defer.py", line 587, in _runCallbacks
+	    current.result = callback(current.result, *args, **kw)
+	--- <exception caught here> ---
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 430, in _continueFiring
+	    callable(*args, **kwargs)
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 1190, in _reallyStartRunning
+	    self._handleSignals()
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\posixbase.py", line 295, in _handleSignals
+	    _SignalReactorMixin._handleSignals(self)
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 1155, in _handleSignals
+	    signal.signal(signal.SIGINT, self.sigInt)
+	exceptions.ValueError: signal only works in main thread
+	
+2016-09-30 14:11:51+0800 [-]     raise error.ReactorAlreadyRunning()
+2016-09-30 14:11:51+0800 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 417, in fireEvent
+	    DeferredList(beforeResults).addCallback(self._continueFiring)
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\defer.py", line 317, in addCallback
+	    callbackKeywords=kw)
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\defer.py", line 306, in addCallbacks
+	    self._runCallbacks()
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\defer.py", line 587, in _runCallbacks
+	    current.result = callback(current.result, *args, **kw)
+	--- <exception caught here> ---
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 430, in _continueFiring
+	    callable(*args, **kwargs)
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 1190, in _reallyStartRunning
+	    self._handleSignals()
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\posixbase.py", line 295, in _handleSignals
+	    _SignalReactorMixin._handleSignals(self)
+	  File "D:\Python\Anaconda\lib\site-packages\twisted\internet\base.py", line 1155, in _handleSignals
+	    signal.signal(signal.SIGINT, self.sigInt)
+	exceptions.ValueError: signal only works in main thread
+	
+2016-09-30 14:11:51+0800 [-]     raise error.ReactorAlreadyRunning()
+2016-09-30 14:11:51+0800 [-] twisted.internet.error.ReactorAlreadyRunning
+2016-09-30 14:11:51+0800 [-] twisted.internet.error.ReactorAlreadyRunning
+2016-09-30 14:11:52+0800 [-] Server connected: tcp4:52.220.132.34:9000
+2016-09-30 14:11:52+0800 [-] Server connected: tcp4:52.220.132.34:9000
+2016-09-30 14:11:52+0800 [-] AWS Client connection open.
+2016-09-30 14:11:52+0800 [-] AWS Client connection open.
+2016-09-30 14:11:55+0800 [-] Content detection took 3.57600021362 second!
+2016-09-30 14:11:55+0800 [-] Content detection took 3.57600021362 second!
+2016-09-30 14:11:55+0800 [-] 1 People found
+2016-09-30 14:11:55+0800 [-] 1 People found
+2016-09-30 14:11:58+0800 [-] Content detection took 2.25200009346 second!
+2016-09-30 14:11:58+0800 [-] Content detection took 2.25200009346 second!
+2016-09-30 14:11:58+0800 [-] 1 People found
+2016-09-30 14:11:58+0800 [-] 1 People found
+2016-09-30 14:12:00+0800 [-] Content detection took 2.67900013924 second!
+2016-09-30 14:12:00+0800 [-] Content detection took 2.67900013924 second!
+2016-09-30 14:12:00+0800 [-] 1 People found
+2016-09-30 14:12:00+0800 [-] 1 People found
+2016-09-30 14:12:03+0800 [-] Content detection took 2.8180000782 second!
+2016-09-30 14:12:03+0800 [-] Content detection took 2.8180000782 second!
+2016-09-30 14:12:03+0800 [-] 1 People found
+2016-09-30 14:12:03+0800 [-] 1 People found
+2016-09-30 14:12:06+0800 [-] Content detection took 2.84299993515 second!
+2016-09-30 14:12:06+0800 [-] Content detection took 2.84299993515 second!
+2016-09-30 14:12:06+0800 [-] 1 People found
+2016-09-30 14:12:06+0800 [-] 1 People found
+2016-09-30 14:12:10+0800 [-] Content detection took 3.70900011063 second!
+2016-09-30 14:12:10+0800 [-] Content detection took 3.70900011063 second!
+2016-09-30 14:12:10+0800 [-] 1 People found
+2016-09-30 14:12:10+0800 [-] 1 People found
+2016-09-30 14:12:14+0800 [-] Content detection took 4.15299987793 second!
+2016-09-30 14:12:14+0800 [-] Content detection took 4.15299987793 second!
+2016-09-30 14:12:14+0800 [-] 1 People found
+2016-09-30 14:12:14+0800 [-] 1 People found
