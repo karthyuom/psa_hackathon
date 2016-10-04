@@ -5,7 +5,7 @@ Created on 26 Sep 2016
 @brief: Vision server module to detect people faces and text info. 
         Able to communicate with the robot to retrieve live camera stream
         Able to communicate with AWS server to recognize people via websocket
-        Able to communicate with web-ui client via via websocket
+        Able to communicate with web-ui client via websocket
 '''
 
 
