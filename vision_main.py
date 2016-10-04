@@ -8,48 +8,6 @@ Created on 26 Sep 2016
         Able to communicate with web-ui client via via websocket
 '''
 
-#!/usr/bin/env python
-
-# Copyright 2015 Google, Inc
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-###############################################################################
-#
-# The MIT License (MIT)
-#
-# Copyright (c) Tavendo GmbH
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-#
-###############################################################################
-
-"""Draws squares around faces in the given image."""
 
 import argparse
 import base64
@@ -84,16 +42,22 @@ from autobahn.twisted.websocket import WebSocketClientProtocol, \
 from twisted.python import log
 from twisted.internet import reactor
 
+from robot_action_handler import *
 
-## Global buffer
-g_frame_buf = None #TODO: Is it thread safe?
-g_annotated_img = None
+
+## Global declarations
+g_robot_ip_addrs = "172.20.10.3"
+g_robot_port = "5002"
+g_snap_url = "http://"+g_robot_ip_addrs+":"+g_robot_port+"/snapshot"
+g_enable_annotation = False #Enable this to get face, text annotaions from google vision API
+g_frame_buf = None #TODO: Is this thread safe?
+g_annotated_img = None #TODO: Is this thread safe?
 g_people_name = ''
+g_text_info = None
 
 
 # [START get_vision_service]
 DISCOVERY_URL='https://{api}.googleapis.com/$discovery/rest?version={apiVersion}'
-
 
 def get_vision_service():
     credentials = GoogleCredentials.get_application_default()
@@ -103,10 +67,10 @@ def get_vision_service():
 
 
 def detect_content(img_buf, max_results=4):
-    """Uses the Vision API to detect faces in the given file.
+    """Uses the Vision API to detect contents such as faces, texts in the given image buffer.
 
     Args:
-        face_file: A file-like object containing an image with faces.
+        img_buf: A image bytes object.
 
     Returns:
         An array of dicts with information about the faces in the picture.
@@ -148,23 +112,24 @@ def detect_content(img_buf, max_results=4):
         })
     response = request.execute()
     
-    # Store data (serialize)
-    #with open('response.pickle', 'wb') as handle:
-        #pickle.dump(response, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
-    # Load data (deserialize)
-    #with open('response.pickle', 'rb') as handle:
-        #unserialized_data = pickle.load(handle)
-
     return response
 # [END detect_content]
 
 
+def resetGlobalEnv():
+  global g_frame_buf, g_annotated_img, g_text_info, g_people_name
+  g_frame_buf = None
+  g_annotated_img = None
+  g_text_info = None
+  g_people_name = ''
+  
+  
 def delay():
   pass
  
 def retrieveLiveStream(stream_url):
   global g_frame_buf, g_annotated_img
+  
   print("\nStart Retrieving live stream at %s..." % stream_url)
   stream = None
   try:
@@ -174,7 +139,6 @@ def retrieveLiveStream(stream_url):
     exit(0)
     
   bytes=''
-  #count = 0
   while True:
       if ((cv2.waitKey(1) == 27)):
           exit(0)
@@ -201,13 +165,9 @@ def retrieveLiveStream(stream_url):
           try:
             g_annotated_img = annotateImageLive(frame,response)
             #print g_annotated_img[1]
-            #print ('Annotation took {0} second!'.format(time.time() - startTime))
-            #if g_annotated_img is None:
-              #continue
-            
-            #save_image('temp_frame.jpg',frame)
-            #exit(0)
-            #cv2.imshow('Original', frame)
+            #print ('Annotation took {0} second!'.format(time.time() - startTime))         
+            save_image('temp_frame.jpg',frame)
+            cv2.imshow('Original', frame)
             #cv2.imshow('Annotation', g_annotated_img[0])
             #t3 = time.time()
             #print ('Rendering took {0} second!'.format(t3 - t2))
@@ -218,6 +178,61 @@ def retrieveLiveStream(stream_url):
       timeout = threading.Timer(0.02,delay)
       timeout.start()   
       #time.sleep(1)
+ 
+ 
+def getSnapshot(snap_url):
+  global g_frame_buf, g_annotated_img, g_text_info, g_people_name
+  resetGlobalEnv()
+  
+  print("\nGet snapshot at %s ..." % snap_url)
+  
+  startTime = time.time()
+  req = None
+  try:
+    req = urllib.urlopen(snap_url)
+  except:
+    print"WARN: Snapshot is not found."
+    return
+  
+  img_bytes = bytearray(req.read())
+  arr = np.asarray(img_bytes, dtype=np.uint8)
+  img = cv2.imdecode(arr, -1) # 'load it as it is'
+  print ('Snapshot retrieval took {0} second!'.format(time.time() - startTime))
+  t1 = time.time()
+  
+  g_frame_buf = img
+  if not g_enable_annotation:
+    print"WANR: Annotation has been disabled!"
+    g_annotated_img = [g_frame_buf, "FACE"] #Snapshot will be sent for recognition only when the type is "FACE"
+    return
+  
+  response = None
+  try:
+    response = detect_content(img_bytes)
+    #print response
+    t2 = time.time()
+    print ('Content detection took {0} second!'.format(t2 - t1))
+  except:
+    print'WARN: No response from google vision api!'
+    return
+  try:
+    g_annotated_img = annotateImageLive(img,response)   
+    g_text_info = getTextInfo(response)
+    if not g_text_info is None:
+      playSound(g_text_info)
+               
+    #save_image('Snapshot.jpg',g_frame_buf)
+    #save_image('Annotated.jpg',g_annotated_img[0])
+    #cv2.imshow('Original', frame)
+    #cv2.imshow('Annotation', g_annotated_img[0])
+    t3 = time.time()
+    print ('Annotation took {0} second!'.format(t3 - t2))
+  except:
+    print 'WARN: Annotation failed!'
+    return
+           
+  #cv2.imshow('Snapshot',img)
+  #if cv2.waitKey() & 0xff == 27: quit()
 
 
 class VisionServerProtocol(WebSocketServerProtocol):
@@ -228,9 +243,6 @@ class VisionServerProtocol(WebSocketServerProtocol):
     def onOpen(self):
         print("Vision service socket connection open.")
          
-        def delay():
-          pass
-        
         def renderFrame():
           if g_frame_buf is None:
             return
@@ -242,29 +254,27 @@ class VisionServerProtocol(WebSocketServerProtocol):
                   "val":"Original frame rendering!",
                   "content": content
                 }
-          self.sendMessage(json.dumps(msg))   
-          #time.sleep(30) 
-          #timeout = threading.Timer(0.03,delay)
-          #timeout.start()        
+          self.sendMessage(json.dumps(msg))
           self.factory.reactor.callLater(0.2, renderFrame)          
         
-        renderFrame()  
+        #renderFrame()  
               
     def onMessage(self, payload, isBinary):
         raw = payload.decode('utf8')
         msg = json.loads(raw)
         print("Received {} message of length {}.".format(
             msg['type'], len(raw)))
-        
-        if (g_annotated_img is None):
+                             
+        if msg['type'] == "AUTO":
+            if (g_annotated_img is None):
               msg = {
                       "type": "ANNOTATED",
                       "val": "Sorry, No annotation found!",
                       "content": "NULL"
                     }
               self.sendMessage(json.dumps(msg))
-                        
-        elif msg['type'] == "AUTO":
+              return
+              
             img_buf = cv2.imencode('.png', g_annotated_img[0])[1].tostring()
             val = ''
             if g_annotated_img[1] == 'FACE':
@@ -280,8 +290,11 @@ class VisionServerProtocol(WebSocketServerProtocol):
             self.sendMessage(json.dumps(msg))
                                        
         elif msg['type'] == "MANUALFACE":
+            getSnapshot(g_snap_url)
+            if g_annotated_img is None:
+              return
+              
             img_buf = cv2.imencode('.png', g_annotated_img[0])[1].tostring()
-            #print img_buf
             val = ''
             if g_annotated_img[1] == 'FACE':
               val = g_people_name
@@ -306,7 +319,7 @@ class VisionServerProtocol(WebSocketServerProtocol):
 
 
 class AWSClientProtocol(WebSocketClientProtocol):
-  
+    global g_annotated_img, g_frame_buf, g_people_name
     reply_received = 0
     start_processing = True
         
@@ -327,7 +340,6 @@ class AWSClientProtocol(WebSocketClientProtocol):
                 msg['val'] = base64.b64encode(image_content)
             print("Register person: "+ name)
             self.sendMessage(json.dumps(msg).encode('utf8'))
-            #self.factory.reactor.callLater(1, register_faces(path_to_img,name))
         
         def recognizeFace():
           if g_annotated_img is None:
@@ -347,14 +359,16 @@ class AWSClientProtocol(WebSocketClientProtocol):
             msg['val'] = base64.b64encode(img_buf)
             self.sendMessage(json.dumps(msg).encode('utf8'))
             
-          self.factory.reactor.callLater(1, recognizeFace)
+          self.factory.reactor.callLater(7, recognizeFace)# Try sending request every 7 seconds
             
-        # Register faces ..
-        register_face_dir = r"D:\Workspaces\eclipse-python\psa_hackathon\register_faces"
-        for img_f in os.listdir(register_face_dir):
-          name = str(img_f.split('.')[0])
+        ############ Register faces ############################################################## 
+        #TODO: Uncomment if you need to register new faces   
+        #register_face_dir = r"D:\Workspaces\eclipse-python\psa_hackathon\register_faces"
+        #for img_f in os.listdir(register_face_dir):
+          #name = str(img_f.split('.')[0])
           #print name
-          register_faces(os.path.join(register_face_dir,img_f), name)
+          #register_faces(os.path.join(register_face_dir,img_f), name)
+        ##########################################################################################
         
         # Recognize people in the frame
         recognizeFace()
@@ -372,9 +386,13 @@ class AWSClientProtocol(WebSocketClientProtocol):
             elif (msg['type'] == "FRAME"):
               if msg['people_name'] == "UNKNOWN":
                 print("Sorry, I don't know who you are..!!")
+                playSound("Sorry,   I don't  know   who you are")
               else:
                 g_people_name = msg['people_name']
                 print("Hi, {0}".format(g_people_name))
+                playSound("Hi   "+g_people_name)
+            
+            resetGlobalEnv()#Reset all declaration after one snapshot
             
         if not self.start_processing:
             return
@@ -383,25 +401,26 @@ class AWSClientProtocol(WebSocketClientProtocol):
         print("AWS Client connection closed: {0}".format(reason))
         
                    
-def registerAWSClientConnection(public_ip):
+def registerAWSClientConnection(public_ip):    
     log.startLogging(sys.stdout)
-    
-    factory = WebSocketClientFactory(u"ws://"+public_ip+":9000")
+    factory = WebSocketClientFactory(u"ws://"+public_ip+":443")
     factory.protocol = AWSClientProtocol
-
-    reactor.connectTCP(public_ip, 9000, factory)
+    reactor.connectTCP(public_ip, 443, factory)
     reactor.run()
   
   
 if __name__ == '__main__':
 
+    ############ Initialize Robot action handler ####################
+    status = initRobotAction(g_robot_ip_addrs, g_robot_port)
+    if not status:
+      exit(0)   
+    ################################################################# 
+    
     ############ Register live streaming thread #####################
-    
-    #stream_url = "http://172.20.10.2:5002/video_feed"
-    stream_url = "http://172.20.10.6:5002/video_feed"
-    retr_th = Thread(target = retrieveLiveStream, args = (stream_url,))
-    retr_th.start()   
-    
+    #stream_url = "http://"+g_robot_ip_addrs+":"+g_robot_port+"/vide_feed"
+    #retr_th = Thread(target = retrieveLiveStream, args = (stream_url,))
+    #retr_th.start()    
     ################################################################# 
     
     
@@ -409,30 +428,21 @@ if __name__ == '__main__':
     public_ip= '52.220.132.34'
     vpn_ip = '172.31.30.131'    
     aws_th = Thread(target = registerAWSClientConnection, args = (public_ip,))
-    aws_th.start()
-    
+    aws_th.start()    
     ################################################################# 
     
     ########################## Server part ##########################
-    log.startLogging(sys.stdout)
+    #log.startLogging(sys.stdout)
     factory = WebSocketServerFactory(u"ws://127.0.0.1:9000")
     factory.protocol = VisionServerProtocol
-    # factory.setProtocolOptions(maxConnections=2)
-
-    # note to self: if using putChild, the child must be bytes...
-
     reactor.listenTCP(9000, factory)
-    reactor.run()
-    
+    reactor.run()    
     ########################## End Server ##########################
     
+    ############ Test snapshot functionality #######################    
+    #snap_url = 'http://answers.opencv.org/upfiles/logo_2.png'
+    #snap_url = "http://172.20.10.6:5002/snapshot"
+    #getSnapshot(g_snap_url)   
+    #################################################################
     
-    #process_th = Thread(target = processLiveStream, args = ())
-    #process_th.start()
-    #process_th.join()
-    
-    #processFrame(stream_url)
-    
-    #retrieveLiveStream(stream_url)
-    # Your code here !
-    #print ('The script took {0} second !'.format(time.time() - startTime))
+
