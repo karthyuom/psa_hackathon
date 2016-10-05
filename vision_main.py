@@ -3,23 +3,10 @@ Created on 26 Sep 2016
 
 @author: Karthick
 @brief: Vision server module to detect people faces and text info. 
-        Able to communicate with the robot to retrieve live camera stream
+        Able to communicate with the robot to retrieve live camera stream/snapshot and perform robot actions
         Able to communicate with AWS server to recognize people via websocket
         Able to communicate with web-ui client via websocket
 '''
-
-
-import argparse
-import base64
-
-from PIL import Image
-from PIL import ImageDraw
-import pickle
-
-from googleapiclient import discovery
-import httplib2
-from oauth2client.client import GoogleCredentials
-import time 
 
 import os
 import json
@@ -28,10 +15,9 @@ import urllib
 import threading
 from threading import Thread
 
-from PIL import Image
-import StringIO
-
+from google_vision_api import *
 from image_annotation import *
+from robot_action_handler import *
 
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
@@ -42,78 +28,16 @@ from autobahn.twisted.websocket import WebSocketClientProtocol, \
 from twisted.python import log
 from twisted.internet import reactor
 
-from robot_action_handler import *
-
 
 ## Global declarations
-g_robot_ip_addrs = "172.20.10.3"
-g_robot_port = "5002"
-g_snap_url = "http://"+g_robot_ip_addrs+":"+g_robot_port+"/snapshot"
+g_robot_ip_addrs = ""
+g_robot_port = ""
+g_snap_url = ""
 g_enable_annotation = False #Enable this to get face, text annotaions from google vision API
 g_frame_buf = None #TODO: Is this thread safe?
 g_annotated_img = None #TODO: Is this thread safe?
 g_people_name = ''
 g_text_info = None
-
-
-# [START get_vision_service]
-DISCOVERY_URL='https://{api}.googleapis.com/$discovery/rest?version={apiVersion}'
-
-def get_vision_service():
-    credentials = GoogleCredentials.get_application_default()
-    return discovery.build('vision', 'v1', credentials=credentials,
-                           discoveryServiceUrl=DISCOVERY_URL)
-# [END get_vision_service]
-
-
-def detect_content(img_buf, max_results=4):
-    """Uses the Vision API to detect contents such as faces, texts in the given image buffer.
-
-    Args:
-        img_buf: A image bytes object.
-
-    Returns:
-        An array of dicts with information about the faces in the picture.
-    """
-
-    batch_request = [{
-        'image': {
-            'content': base64.b64encode(img_buf).decode('UTF-8')
-            },
-        'features': [{
-            'type': 'FACE_DETECTION',
-            'maxResults': max_results,
-            },
-            {
-            "type":"LABEL_DETECTION",
-            "maxResults":10
-            },
-            {
-               "type": "IMAGE_PROPERTIES",
-               "maxResults": "10"
-            },
-            {
-               "type": "TEXT_DETECTION",
-               "maxResults": "20"
-            }
-             ]
-        }]
-# TEXT_DETECTION    Perform Optical Character Recognition (OCR) on text within the image
-# LOGO_DETECTION    Detect company logos within the image
-# SAFE_SEARCH_DETECTION    Determine image safe search properties on the image
-# LANDMARK_DETECTION    Detect geographic landmarks within the image
-# LABEL_DETECTION    Execute Image Content Analysis on the entire image and return
-# FACE_DETECTION    Detect faces within the image
-# IMAGE_PROPERTIES    Compute a set of properties about the image (such as the image's dominant colors)
-    service = get_vision_service()
-
-    request = service.images().annotate(body={
-        'requests': batch_request,
-        })
-    response = request.execute()
-    
-    return response
-# [END detect_content]
 
 
 def resetGlobalEnv():
@@ -126,6 +50,7 @@ def resetGlobalEnv():
   
 def delay():
   pass
+
  
 def retrieveLiveStream(stream_url):
   global g_frame_buf, g_annotated_img
@@ -202,7 +127,7 @@ def getSnapshot(snap_url):
   
   g_frame_buf = img
   if not g_enable_annotation:
-    print"WANR: Annotation has been disabled!"
+    print"WARN: Annotation has been disabled!"
     g_annotated_img = [g_frame_buf, "FACE"] #Snapshot will be sent for recognition only when the type is "FACE"
     return
   
@@ -359,7 +284,7 @@ class AWSClientProtocol(WebSocketClientProtocol):
             msg['val'] = base64.b64encode(img_buf)
             self.sendMessage(json.dumps(msg).encode('utf8'))
             
-          self.factory.reactor.callLater(7, recognizeFace)# Try sending request every 7 seconds
+          self.factory.reactor.callLater(7, recognizeFace)# Try sending request every 7 seconds. Reduce if it is live streaming
             
         ############ Register faces ############################################################## 
         #TODO: Uncomment if you need to register new faces   
@@ -392,7 +317,7 @@ class AWSClientProtocol(WebSocketClientProtocol):
                 print("Hi, {0}".format(g_people_name))
                 playSound("Hi   "+g_people_name)
             
-            resetGlobalEnv()#Reset all declaration after one snapshot
+            resetGlobalEnv()#Reset all declaration after one snapshot. don't reset this for live stream
             
         if not self.start_processing:
             return
@@ -401,17 +326,45 @@ class AWSClientProtocol(WebSocketClientProtocol):
         print("AWS Client connection closed: {0}".format(reason))
         
                    
-def registerAWSClientConnection(public_ip):    
+def registerAWSClientConnection(public_ip, port):    
     log.startLogging(sys.stdout)
-    factory = WebSocketClientFactory(u"ws://"+public_ip+":443")
+    factory = WebSocketClientFactory(u"ws://"+public_ip+":"+port)
     factory.protocol = AWSClientProtocol
-    reactor.connectTCP(public_ip, 443, factory)
+    reactor.connectTCP(public_ip, int(port), factory)
     reactor.run()
+
+ 
+def initArgs():
+  parser = argparse.ArgumentParser(description='Vision module server')
+  parser.add_argument('-vision_host_ip',
+                      help='Vision server hosting ip address')
+  parser.add_argument('-vision_host_port',
+                      help='Vision server communication port')
+  parser.add_argument('-robot_com_ip',
+                      help='Robot ip address')
+  parser.add_argument('-robot_com_port',
+                      help='Robot communication port')
+  parser.add_argument('-aws_com_ip',
+                      help='AWS face recognition server ip')
+  parser.add_argument('-aws_com_port',
+                      help='AWS face recognition server communication port')
+  parser.add_argument('--enable-annotation',
+                      dest = 'enable_annotation',
+                      default=0, 
+                      help='Config to turn on/off face,text annotations')
   
-  
-if __name__ == '__main__':
+  return parser.parse_args()
+
+     
+if __name__ == '__main__':    
+    
+    args_in = initArgs()    
+    if (args_in.enable_annotation == '1'): g_enable_annotation = True           
 
     ############ Initialize Robot action handler ####################
+    g_robot_ip_addrs = args_in.robot_com_ip
+    g_robot_port = args_in.robot_com_port
+    g_snap_url = "http://"+g_robot_ip_addrs+":"+g_robot_port+"/snapshot"
     status = initRobotAction(g_robot_ip_addrs, g_robot_port)
     if not status:
       exit(0)   
@@ -425,24 +378,23 @@ if __name__ == '__main__':
     
     
     ############ Register AWS connection thread #####################
-    public_ip= '52.220.132.34'
-    vpn_ip = '172.31.30.131'    
-    aws_th = Thread(target = registerAWSClientConnection, args = (public_ip,))
+    aws_th = Thread(target = registerAWSClientConnection, 
+                    args = (args_in.aws_com_ip,args_in.aws_com_port))
     aws_th.start()    
     ################################################################# 
     
     ########################## Server part ##########################
     #log.startLogging(sys.stdout)
-    factory = WebSocketServerFactory(u"ws://127.0.0.1:9000")
+    factory = WebSocketServerFactory(u"ws://"+args_in.vision_host_ip+":"+args_in.vision_host_port)
     factory.protocol = VisionServerProtocol
-    reactor.listenTCP(9000, factory)
+    reactor.listenTCP(int(args_in.vision_host_port), factory)
     reactor.run()    
     ########################## End Server ##########################
     
     ############ Test snapshot functionality #######################    
     #snap_url = 'http://answers.opencv.org/upfiles/logo_2.png'
     #snap_url = "http://172.20.10.6:5002/snapshot"
-    #getSnapshot(g_snap_url)   
+    #getSnapshot(snap_url)   
     #################################################################
     
 

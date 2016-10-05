@@ -1,0 +1,45 @@
+Raspberry PI RESTFUL API
+
+current port: 5002
+robot_ip_address: 172.20.10.6
+
+Video Feed:
+	http://robot_ip_address:5002/video_feed
+
+	Test Command(run in command terminal)
+	curl http://172.20.10.6:5002/video_feed
+
+Robot Control:
+	post command to below link
+	http://robot_ip_address:5002/actionlist
+	
+	1. "action=FORWARD" //Go forward 
+		
+		Test Command(run in command terminal)
+		curl http://172.20.10.6:5002/actionlist -d "action=FORWARD" -X POST -v
+	
+	2. "action=TURNLEFT" 
+		Test Command(run in command terminal)
+		curl http://172.20.10.6:5002/actionlist -d "action=TURNLEFT" -X POST -v
+	
+	3. "action=TURNRIGHT"
+		Test Command(run in command terminal)
+		curl http://172.20.10.6:5002/actionlist -d "action=TURNRIGHT" -X POST -v
+	
+	4. "action=STOP"
+		Test Command(run in command terminal)
+		curl http://172.20.10.6:5002/actionlist -d "action=STOP" -X POST -v
+		
+	5. "action=BACKFORWARD" //Go backward 
+		
+		Test Command(run in command terminal)
+		curl http://172.20.10.6:5002/actionlist -d "action=BACKFORWARD" -X POST -v
+	
+	6. "action=FORWARD_SLOW" //Go FORWARD_SLOW 
+		
+		Test Command(run in command terminal)
+		curl http://172.20.10.6:5002/actionlist -d "action=FORWARD_SLOW" -X POST -v
+	
+	
+
+

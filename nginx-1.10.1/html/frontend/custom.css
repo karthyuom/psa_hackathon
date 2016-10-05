@@ -1,0 +1,53 @@
+.no-border{
+    border: 0px;
+    box-shadow: none;
+}
+
+.no-bottom-margin{
+    margin-bottom: 0px; !important
+}
+
+.circle li{
+    position: absolute;
+    height: 8em;
+    width: 8em;
+    overflow: hidden;
+    background: radial-gradient(at bottom right, #71fafc, #4185f2);
+    border-top-left-radius: 100%;
+    transform-origin: 100% 100%;
+}
+
+.circle li:nth-child(1){
+    transform: rotate(45deg);
+}
+
+.circle li:nth-child(2){
+    transform: rotate(135deg);
+}
+
+.circle li:nth-child(3){
+    transform: rotate(225deg);
+}
+
+.circle li:nth-child(4){
+    transform: rotate(315deg);
+}
+
+.circle li a{
+    display: block;
+    position: absolute;
+    bottom: 50%;
+    right: 50%;
+    text-decoration: none;
+    text-align: center;
+    transform: rotate(-45deg);
+}
+
+.circle li:hover{
+    background: radial-gradient(at bottom right, #4185f2, #4185f2);
+}
+
+.circle{
+    border: 1px;
+    overflow: hidden;
+}

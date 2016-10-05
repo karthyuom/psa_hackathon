@@ -1,1 +1,0 @@
-python vision_main.py > vision_svr_log.txt
